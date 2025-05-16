@@ -1,0 +1,274 @@
+// VirtualDogGame.java
+
+
+import javax.sound.sampled.*;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
+import java.util.Random;
+
+public class VirtualDogGame extends JFrame {
+
+    private JLabel dogLabel, boneLabel, ballLabel;
+    private Timer movementTimer, idleTimer, ballBounceTimer;
+    private int xPos;
+    private int speed = 2;
+    private boolean movingRight = true;
+    private boolean isMoving = true;
+    private int idleCounter = 0;
+    private boolean isSleeping = false;
+    private final Random random = new Random();
+
+    public VirtualDogGame() {
+        initializeUI();
+        startMovingDog();
+        startIdleChecker();
+    }
+
+    private void initializeUI() {
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setUndecorated(true);
+        setLayout(null);
+        setAlwaysOnTop(true);
+        setBackground(new Color(0, 0, 0, 0));
+        setOpacity(1.0f);
+
+        createDogLabel();
+        createBoneLabel();
+        createBallLabel();
+
+        setSize(dogLabel.getWidth(), dogLabel.getHeight());
+        xPos = 0;
+        setLocation(xPos, Toolkit.getDefaultToolkit().getScreenSize().height - getHeight());
+
+        addKeyBindings();
+        addMouseEvents();
+
+        setVisible(true);
+    }
+
+    private void createDogLabel() {
+        ImageIcon dogIcon = new ImageIcon("/home/kamlesh/Desktop/Kamlesh/SPARK_UDEMY/Code/SparkPractice/src/main/resources/dog.gif");
+        int targetHeight = 120;
+        int targetWidth = dogIcon.getIconWidth() * targetHeight / dogIcon.getIconHeight();
+        Image scaledImage = dogIcon.getImage().getScaledInstance(targetWidth, targetHeight, Image.SCALE_DEFAULT);
+        dogLabel = new JLabel(new ImageIcon(scaledImage));
+        dogLabel.setBounds(0, 0, targetWidth, targetHeight);
+        add(dogLabel);
+    }
+
+    private void createBoneLabel() {
+        boneLabel = new JLabel(new ImageIcon("/home/kamlesh/Documents/img.png"));
+        boneLabel.setBounds(-200, 0, 100, 100);
+        add(boneLabel);
+    }
+
+    private void createBallLabel() {
+        ballLabel = new JLabel(new ImageIcon("/home/kamlesh/Documents/img.png"));
+        ballLabel.setBounds(-200, 0, 80, 80);
+        add(ballLabel);
+    }
+
+    private void startMovingDog() {
+        int delay = 30;
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int screenWidth = screenSize.width;
+
+        movementTimer = new Timer(delay, e -> {
+            if (!isMoving || isSleeping) return;
+
+            xPos += movingRight ? speed : -speed;
+
+            if (xPos <= 0 || xPos + getWidth() >= screenWidth) {
+                movingRight = !movingRight;
+            }
+
+            setLocation(xPos, screenSize.height - getHeight());
+        });
+        movementTimer.start();
+    }
+
+    private void addKeyBindings() {
+        setFocusable(true);
+        requestFocusInWindow();
+
+        InputMap im = getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap am = getRootPane().getActionMap();
+
+        im.put(KeyStroke.getKeyStroke("LEFT"), "moveLeft");
+        im.put(KeyStroke.getKeyStroke("RIGHT"), "moveRight");
+        im.put(KeyStroke.getKeyStroke("SPACE"), "toggleMove");
+
+        am.put("moveLeft", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                movingRight = false;
+                isMoving = true;
+                isSleeping = false;
+                idleCounter = 0;
+            }
+        });
+
+        am.put("moveRight", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                movingRight = true;
+                isMoving = true;
+                isSleeping = false;
+                idleCounter = 0;
+            }
+        });
+
+        am.put("toggleMove", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                isMoving = !isMoving;
+                isSleeping = false;
+                idleCounter = 0;
+            }
+        });
+    }
+
+    private void addMouseEvents() {
+        dogLabel.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+               // Toolkit.getDefaultToolkit().beep(); // Bark
+                VirtualDogGame.playBark();
+            }
+        });
+
+        // This handles clicks anywhere on the frame
+        getContentPane().addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                int x = e.getX();
+                int y = e.getY();
+
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    if (random.nextBoolean()) showBone(x, y);
+                    else bounceBall(x, y);
+                }
+            }
+        });
+    }
+
+    private void showBone(int x, int y) {
+        ImageIcon boneIcon = new ImageIcon("/home/kamlesh/Desktop/Kamlesh/SPARK_UDEMY/Code/SparkPractice/src/main/resources/img_1.png");
+        int width = 40;
+        int height = 40;
+
+        JLabel bone = new JLabel(new ImageIcon(boneIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH)));
+        bone.setBounds(x, y, width, height);
+        add(bone);
+        repaint();
+
+        // Optional: auto-remove bone after a few seconds
+        Timer timer = new Timer(5000, e -> {
+            remove(bone);
+            repaint();
+        });
+        timer.setRepeats(false);
+        timer.start();
+    }
+
+
+    private void bounceBall(int x, int y) {
+        ImageIcon ballIcon = new ImageIcon("/home/kamlesh/Desktop/Kamlesh/SPARK_UDEMY/Code/SparkPractice/src/main/resources/img_1.png");
+        int width = 40;
+        int height = 40;
+
+        JLabel ball = new JLabel(new ImageIcon(ballIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH)));
+        ball.setBounds(x, y, width, height);
+        add(ball);
+        repaint();
+
+        Timer timer = new Timer(10, null);
+        final int[] dy = {2}; // direction and speed
+        final int[] currentY = {y};
+        final int floor = getHeight() - height - 50;
+
+        timer.addActionListener(e -> {
+            currentY[0] += dy[0];
+            if (currentY[0] >= floor || currentY[0] <= y - 50) {
+                dy[0] = -dy[0]; // bounce
+            }
+            ball.setLocation(x, currentY[0]);
+        });
+
+        timer.start();
+
+        // Stop bouncing after 5 seconds
+        new Timer(5000, e -> {
+            timer.stop();
+            remove(ball);
+            repaint();
+        }).start();
+    }
+
+    private void startIdleChecker() {
+        idleTimer = new Timer(1000, e -> {
+            idleCounter++;
+            if (idleCounter > 10) {
+                isSleeping = true;
+                // Optionally change dog icon to a sleeping dog
+            }
+        });
+        idleTimer.start();
+    }
+    public static void playBark() {
+        try {
+
+            // Specify the path to your barking sound file
+            File soundFile = new File("bark.wav"); // Replace "bark.wav" with your actual file name and path
+
+            // Create an AudioInputStream from the file
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundFile);
+
+            // Get the audio format
+            AudioFormat format = audioInputStream.getFormat();
+
+            // Create a DataLine.Info object for the Clip
+            DataLine.Info info = new DataLine.Info(Clip.class, format);
+
+            // Get the Clip
+            Clip audioClip = (Clip) AudioSystem.getLine(info);
+
+            // Open the audioInputStream to the clip
+            audioClip.open(audioInputStream);
+
+            // Start playing the sound
+            audioClip.start();
+            audioClip.start();
+            try {
+                Thread.sleep(200); // Add a small delay (adjust the value as needed, in milliseconds)
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Thread interrupted: " + e.getMessage());
+            }
+            // Optional: Keep the program running until the sound finishes
+            while (audioClip.isRunning()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Thread interrupted: " + e.getMessage());
+                }
+            }
+
+            // Close the clip and audioInputStream
+            audioClip.close();
+            audioInputStream.close();
+
+        } catch (UnsupportedAudioFileException e) {
+            System.out.println("Unsupported audio file format: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Error loading the audio file: " + e.getMessage());
+        } catch (LineUnavailableException e) {
+            System.out.println("Could not get an audio line: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(VirtualDogGame::new);
+    }
+}
